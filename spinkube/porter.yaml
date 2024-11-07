@@ -1,0 +1,98 @@
+schemaType: Bundle
+schemaVersion: 1.0.1
+name: spinkube
+version: 0.3.0
+description: "A Porter Bundle to install SpinKube"
+registry: ghcr.io/thorstenhans
+mixins:
+  - kubernetes:
+      clientVersion: v1.31.2
+  - helm3:
+      clientVersion: v3.16.2
+images:
+  spinkube_chart:
+    description: The SpinKube chart
+    repository: ghcr.io/spinkube/charts/spin-operator
+    tag: "0.3.0"
+  spin_operator:
+    description: The Spin Operator
+    repository: ghcr.io/spinkube/spin-operator
+    tag: "v0.3.0"
+
+dependencies:
+  requires:
+    - name: cert-manager
+      bundle:
+        reference: ghcr.io/thorstenhans/cert-manager:v0.1.2
+    - name: kwasm-operator
+      bundle:
+        reference: ghcr.io/thorstenhans/kwasm-operator:v0.1.1
+
+credentials:
+  - name: kubeconfig
+    path: /home/nonroot/.kube/config
+
+install:
+  - kubernetes:
+      description: "Create spin-operator Namespace"
+      wait: true
+      manifests:
+        - /cnab/app/manifests/namespace.yaml
+  - kubernetes:
+      description: "Installing SpinKube Manifests"
+      wait: true
+      manifests:
+        - /cnab/app/manifests/spin-operator.crds.yaml
+        - /cnab/app/manifests/spin-operator.runtime-class.yaml
+        - /cnab/app/manifests/spin-operator.shim-executor.yaml
+  - helm3:
+      description: "Installing Spin Operator"
+      name: spin-operator
+      namespace: spin-operator
+      chart: oci://${ bundle.images.spinkube_chart.repository}
+      version: "${ bundle.images.spinkube_chart.tag }"
+      wait: true
+      set:
+        controllerManager.manager.image.repository: ${ bundle.images.spin_operator.repository}
+        controllerManager.manager.image.tag: ${ bundle.images.spin_operator.tag}
+
+upgrade:
+  - kubernetes:
+      description: "Upgrade SpinKube Manifests"
+      wait: true
+      manifests:
+        - /cnab/app/manifests/spin-operator.crds.yaml
+  - helm3:
+      description: "Upgrade spin-operator"
+      name: spin-operator
+      namespace: spin-operator
+      chart: oci://${ bundle.images.spinkube_chart.repository}
+      version: "${ bundle.images.spinkube_chart.tag }"
+      wait: true
+      set:
+        controllerManager.manager.image.repository: ${ bundle.images.spin_operator.repository}
+        controllerManager.manager.image.tag: ${ bundle.images.spin_operator.tag}
+
+uninstall:
+  - helm3:
+      description: "Removing spin-operator Helm chart"
+      name: spin-operator
+      namespace: spin-operator
+      chart: oci://${ bundle.images.spinkube_chart.repository}
+      version: "${ bundle.images.spinkube_chart.tag }"
+      wait: true
+      set:
+        controllerManager.manager.image.repository: ${ bundle.images.spin_operator.repository}
+        controllerManager.manager.image.tag: ${ bundle.images.spin_operator.tag}
+  - kubernetes:
+      description: "Removing SpinKube Manifests"
+      wait: true
+      manifests:
+        - /cnab/app/manifests/spin-operator.crds.yaml
+        - /cnab/app/manifests/spin-operator.runtime-class.yaml
+        - /cnab/app/manifests/spin-operator.shim-executor.yaml
+  - kubernetes:
+      description: "Remove spin-operator Namespace"
+      wait: true
+      manifests:
+        - /cnab/app/manifests/namespace.yaml

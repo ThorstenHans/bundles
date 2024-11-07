@@ -1,0 +1,85 @@
+schemaType: Bundle
+schemaVersion: 1.0.1
+name: kwasm-operator
+version: 0.1.1
+description: "An example Porter configuration"
+registry: "ghcr.io/thorstenhans"
+
+mixins:
+  - exec:
+  - kubernetes:
+  - helm3:
+      clientVersion: v3.16.2
+      repositories:
+        kwasm:
+          url: http://kwasm.sh/kwasm-operator/
+
+credentials:
+  - name: kubeconfig
+    path: /home/nonroot/.kube/config
+
+parameters:
+  - name: wasm_nodes
+    type: string
+    default: all
+
+install:
+  - kubernetes:
+      description: "Create kwasm Namespace"
+      wait: true
+      manifests:
+        - /cnab/app/manifests/namespace.yaml
+  - helm3:
+      description: "Install Kwasm Operator"
+      name: kwasm-operator
+      namespace: kwasm
+      chart: kwasm/kwasm-operator
+      upsert: true
+      wait: true
+      set:
+        kwasmOperator.installerImage: ghcr.io/spinkube/containerd-shim-spin/node-installer:v0.16.0
+  - exec:
+      description: "Annotate Kubernetes Nodes"
+      command: ./kwasm.sh
+      arguments:
+        - annotate_nodes
+        - ${ bundle.parameters.wasm_nodes }
+
+upgrade:
+  - helm3:
+      description: "Upgrade Kwasm Operator"
+      name: kwasm-operator
+      namespace: kwasm
+      chart: kwasm/kwasm-operator
+      upsert: true
+      wait: true
+      set:
+        kwasmOperator.installerImage: ghcr.io/spinkube/containerd-shim-spin/node-installer:v0.16.0
+  - exec:
+      description: "Annotate Kubernetes Nodes"
+      command: ./kwasm.sh
+      arguments:
+        - annotate_nodes
+        - ${ bundle.parameters.wasm_nodes }
+
+uninstall:
+  - helm3:
+      description: "Remove Kwasm Operator"
+      name: kwasm-operator
+      namespace: kwasm
+      chart: kwasm/kwasm-operator
+      upsert: true
+      wait: true
+      set:
+        kwasmOperator.installerImage: ghcr.io/spinkube/containerd-shim-spin/node-installer:v0.16.0
+  - exec:
+      description: "Remove Kubernetes Node Annotations"
+      command: ./kwasm.sh
+      arguments:
+        - remove_annotation_from_nodes
+        - ${ bundle.parameters.wasm_nodes }
+  - kubernetes:
+      description: "Remove kwasm Namespace"
+      wait: true
+      manifests:
+        - /cnab/app/manifests/namespace.yaml

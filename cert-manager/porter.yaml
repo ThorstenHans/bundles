@@ -1,0 +1,59 @@
+schemaType: Bundle
+schemaVersion: 1.0.1
+name: cert-manager
+version: 0.1.2
+description: "A Porter Bundle to install cert-manager"
+registry: "ghcr.io/thorstenhans"
+
+mixins:
+  - kubernetes:
+  - helm3:
+      clientVersion: v3.16.2
+      repositories:
+        jetstack:
+          url: https://charts.jetstack.io
+
+credentials:
+  - name: kubeconfig
+    path: /home/nonroot/.kube/config
+
+install:
+  - kubernetes:
+      description: "Create cert-manager Namespace"
+      wait: true
+      manifests:
+        - /cnab/app/manifests/namespace.yaml
+  - helm3:
+      description: "Install cert-manager"
+      name: cert-manager
+      namespace: cert-manager
+      chart: jetstack/cert-manager
+      upsert: true
+      version: v1.16.1
+      wait: true
+      set:
+        crds.enabled: true
+
+upgrade:
+  - helm3:
+      description: "Upgrade cert-manager"
+      name: cert-manager
+      namespace: cert-manager
+      chart: jetstack/cert-manager
+      version: v1.16.1
+      wait: true
+      set:
+        crds.enabled: true
+
+uninstall:
+  - helm3:
+      description: "Uninstall cert-manager"
+      purge: true
+      namespace: cert-manager
+      releases:
+        - cert-manager
+  - kubernetes:
+      description: "Remove cert-manager Namespace"
+      wait: true
+      manifests:
+        - /cnab/app/manifests/namespace.yaml

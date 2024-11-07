@@ -1,0 +1,48 @@
+name: ci
+on:
+  push:
+    branches: [main]
+jobs:
+  publish-bundles:
+    name: Publish Porter Bundles
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+      - name: Setup Porter
+        uses: getporter/gh-action@v0.1.3
+        with:
+          porter_version: v1.1.0
+      - name: Install Mixins
+        run: |
+          porter mixins install kubernetes
+          porter mixins install exec
+          porter mixin install helm3 --feed-url https://mchorfa.github.io/porter-helm3/atom.xml
+
+      - name: Login to the ghcr.io Docker Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and Publish cert-manager
+        run: |
+          pushd cert-manager
+          porter build
+          porter publish --force --registry ghcr.io/thorstenhans
+          popd
+      - name: Build and Publish kwasm-operator
+        run: |
+          pushd kwasm-operator
+          porter build
+          porter publish --force --registry ghcr.io/thorstenhans
+          popd
+      - name: Build and Publish spinkube
+        run: |
+          pushd spinkube
+          porter build
+          porter publish --force --registry ghcr.io/thorstenhans
+          popd
